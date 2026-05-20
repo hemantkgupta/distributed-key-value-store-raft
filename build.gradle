@@ -1,0 +1,123 @@
+allprojects {
+    group = 'com.hkg.distributedkvraft'
+    version = '0.1.0-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java-library'
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    dependencies {
+        testImplementation platform('org.junit:junit-bom:5.10.2')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testImplementation 'org.assertj:assertj-core:3.25.3'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    compileJava.options.encoding = 'UTF-8'
+    compileTestJava.options.encoding = 'UTF-8'
+}
+
+project(':kv-storage-api') {
+    dependencies {
+        api project(':kv-common')
+    }
+}
+
+project(':kv-storage-rocksdb') {
+    dependencies {
+        api project(':kv-storage-api')
+        implementation 'org.rocksdb:rocksdbjni:10.10.1'
+    }
+}
+
+project(':kv-storage-toy-lsm') {
+    dependencies {
+        api project(':kv-storage-api')
+    }
+}
+
+project(':kv-raft-core') {
+    dependencies {
+        api project(':kv-common')
+    }
+}
+
+project(':kv-raft-kv') {
+    dependencies {
+        api project(':kv-common')
+        api project(':kv-raft-core')
+        api project(':kv-storage-api')
+        implementation project(':kv-storage-rocksdb')
+    }
+}
+
+project(':kv-partitioning-range') {
+    dependencies {
+        api project(':kv-common')
+    }
+}
+
+project(':kv-multi-raft') {
+    dependencies {
+        api project(':kv-common')
+        api project(':kv-raft-core')
+        api project(':kv-raft-kv')
+        api project(':kv-partitioning-range')
+    }
+}
+
+project(':kv-leader-lease') {
+    dependencies {
+        api project(':kv-common')
+        api project(':kv-raft-core')
+    }
+}
+
+project(':kv-mvcc') {
+    dependencies {
+        api project(':kv-common')
+        api project(':kv-storage-api')
+    }
+}
+
+project(':kv-membership') {
+    dependencies {
+        api project(':kv-common')
+        api project(':kv-raft-core')
+    }
+}
+
+project(':kv-node') {
+    dependencies {
+        implementation project(':kv-common')
+        implementation project(':kv-storage-api')
+        implementation project(':kv-storage-rocksdb')
+        implementation project(':kv-raft-core')
+        implementation project(':kv-raft-kv')
+        implementation project(':kv-partitioning-range')
+        implementation project(':kv-multi-raft')
+        implementation project(':kv-leader-lease')
+        implementation project(':kv-mvcc')
+        implementation project(':kv-membership')
+    }
+}
+
+project(':kv-client') {
+    dependencies {
+        api project(':kv-common')
+        implementation project(':kv-partitioning-range')
+    }
+}
