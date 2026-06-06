@@ -45,6 +45,7 @@ public final class InMemoryRangeRegistry implements RangeRegistry {
     public void put(RangeDescriptor descriptor) {
         Objects.requireNonNull(descriptor, "descriptor");
         synchronized (lock) {
+            ensureDoesNotOverlapExistingRange(descriptor);
             byId.put(descriptor.rangeId(), descriptor);
             rebuildSnapshot();
         }
@@ -69,5 +70,30 @@ public final class InMemoryRangeRegistry implements RangeRegistry {
                         d -> d.startKey().orElseGet(() -> new Key(new byte[]{0})),
                         RangeDescriptor::compare));
         sortedSnapshot = List.copyOf(copy);
+    }
+
+    private void ensureDoesNotOverlapExistingRange(RangeDescriptor descriptor) {
+        for (RangeDescriptor existing : byId.values()) {
+            if (existing.rangeId().equals(descriptor.rangeId())) {
+                continue;
+            }
+            if (overlaps(existing, descriptor)) {
+                throw new IllegalArgumentException(
+                        "range " + descriptor.rangeId().id()
+                                + " overlaps existing range " + existing.rangeId().id());
+            }
+        }
+    }
+
+    private static boolean overlaps(RangeDescriptor left, RangeDescriptor right) {
+        return startIsBeforeEnd(left.startKey(), right.endKey())
+                && startIsBeforeEnd(right.startKey(), left.endKey());
+    }
+
+    private static boolean startIsBeforeEnd(Optional<Key> start, Optional<Key> end) {
+        if (start.isEmpty() || end.isEmpty()) {
+            return true;
+        }
+        return RangeDescriptor.compare(start.get(), end.get()) < 0;
     }
 }

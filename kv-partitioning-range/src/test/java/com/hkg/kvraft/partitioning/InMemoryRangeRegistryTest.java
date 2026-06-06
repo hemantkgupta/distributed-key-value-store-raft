@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InMemoryRangeRegistryTest {
 
@@ -83,6 +84,42 @@ class InMemoryRangeRegistryTest {
         RangeDescriptor current = registry.allRanges().get(0);
         assertThat(current.leaseholder()).isEqualTo(n2);
         assertThat(current.generation()).isEqualTo(2L);
+    }
+
+    @Test
+    void putRejectsOverlappingRangeDescriptors() {
+        RangeRegistry registry = new InMemoryRangeRegistry();
+        registry.put(rangeOf(1, Optional.of(key("a")), Optional.of(key("m"))));
+
+        assertThatThrownBy(() ->
+                registry.put(rangeOf(2, Optional.of(key("k")), Optional.of(key("z")))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("overlaps existing range");
+    }
+
+    @Test
+    void adjacentRangesAreAllowed() {
+        RangeRegistry registry = new InMemoryRangeRegistry();
+
+        registry.put(rangeOf(1, Optional.empty(), Optional.of(key("m"))));
+        registry.put(rangeOf(2, Optional.of(key("m")), Optional.empty()));
+
+        assertThat(registry.lookup(key("l")))
+                .map(d -> d.rangeId().id()).contains(1L);
+        assertThat(registry.lookup(key("m")))
+                .map(d -> d.rangeId().id()).contains(2L);
+    }
+
+    @Test
+    void replacingRangeCannotOverlapADifferentRange() {
+        RangeRegistry registry = new InMemoryRangeRegistry();
+        registry.put(rangeOf(1, Optional.empty(), Optional.of(key("m"))));
+        registry.put(rangeOf(2, Optional.of(key("m")), Optional.empty()));
+
+        assertThatThrownBy(() ->
+                registry.put(rangeOf(1, Optional.empty(), Optional.of(key("z")))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("overlaps existing range");
     }
 
     private static Key key(String s) {
